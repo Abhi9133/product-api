@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd">
+	<flow name="get-covid-case-by-nationalIDFlow" doc:id="9416712c-4f53-4bf2-8895-7aded8b6e32a" >
+		<http:listener doc:name="Listener" doc:id="9f65c565-0376-4425-b67e-5d6880e519fa" config-ref="HTTP_Listener_config" path="v1/cases/{nationalid}" allowedMethods="GET">
+			<http:error-response >
+				<http:body ><![CDATA[#[payload]]]></http:body>
+			</http:error-response>
+		</http:listener>
+		<logger level="INFO" doc:name="Logger" doc:id="862856c4-8442-459c-809e-faa4e3d362ba" message="#[attributes.uriParams.nationalid]"/>
+		<ee:transform doc:name="transactionId and correlationid" doc:id="8705c481-3cdc-48db-bcd0-52e44fe208ed" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="transactionid" ><![CDATA[%dw 2.0
+output application/java
+---
+attributes.headers.'x-transaction-id' default uuid()
+]]></ee:set-variable>
+				<ee:set-variable variableName="correlationid" ><![CDATA[%dw 2.0
+output application/java
+---
+attributes.headers.'x-correlation-id' default ""]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="bc42aaa3-54fb-4f7b-a3e8-4b478769d9bd" message='transactionid: #[vars.transactionid], correlationid: #[vars.correlationid] message:"the flow has started"'/>
+		<set-variable value="#[attributes.uriParams.nationalID]" doc:name="Set Variable" doc:id="84f64941-0e65-4e88-9aa6-f7b430adaa3c" variableName="nationalID"/>
+		<db:select doc:name="Select" doc:id="74369b3e-8613-4974-87cd-95ee394b13a3" config-ref="Database_Config1">
+			<db:sql ><![CDATA[select case_id, source, case_type, first_name, last_name, phone, email, date_of_birth, national_id, national_id_type, street_address, city, state, postal, country, create_date, update_date from cvd_case_master where national_id =:national_id]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	national_id: vars.nationalID
+}]]]></db:input-parameters>
+		</db:select>
+		<choice doc:name="Choice" doc:id="bf6d7816-d853-4676-a899-e9e861a6c6dd" >
+			<when expression="#[sizeOf(payload) &gt; 0]">
+				<ee:transform doc:name="Transform Message" doc:id="b6ae4f3c-e9e5-4f43-8ef3-aa20aa3baaa3" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	caseid: payload.covidCase.case_id,
+	source: payload.covidCase.source,
+	caseType: payload.covidCase.caseType,
+	firstName: payload.covidCase.firstName,
+	lastName: payload.covidCase.lastName,
+	phone: payload.covidCase.phone,
+	email: payload.covidCase.email,
+	dateOfBirth: payload.covidCase.dateOfBirth as String {format: "yyyy-MM-dd"},
+	nationalID: payload.covidCase.nationalID,
+	nationalIDType: payload.covidCase.nationalIDType,
+	address: {
+		streetAddress: payload.covidCase.address.streetAddress,
+		city: payload.covidCase.address.city,
+		state: payload.covidCase.address.state,
+		postal: payload.covidCase.address.postal,
+		country: payload.covidCase.address.country
+	}
+}
+]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise >
+				<raise-error doc:name="Raise error" doc:id="aa32842b-ddce-4348-8d43-5e8d664f126e" type="CUSTOM:CASE_NOT_FOUND" description="THE SERVER HAS NOT FOUND ANYTHING REGARDING THE URI"/>
+			</otherwise>
+		</choice>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="9a544328-01e6-4890-8767-933f0fd7cbbd" type="CUSTOM:CASE_NOT_FOUND">
+				<ee:transform doc:name="Transform Message" doc:id="db019676-70e3-4e39-bdef-aa28e3fc1ed0">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"code": 404,
+	"message": "resource is not found",
+	"description": error.description,
+	"transactionId": vars.transactionid
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+</mule>

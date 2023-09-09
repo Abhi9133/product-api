@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:validation="http://www.mulesoft.org/schema/mule/validation" xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd">
+	<sub-flow name="covid-case-validation-sub-flow" doc:id="55aa89a8-b379-472c-99a7-34c01aae7e5c" >
+		<validation:all doc:name="All" doc:id="b04be891-aa44-4f8e-ab96-eeee8cb9273d">
+			<validation:is-not-null doc:name="source validator" doc:id="2c3410ee-f1c0-4c2c-93f8-33c3224fed75" value="#[vars.inputpayload.source]" message='#["please provide the source"]' />
+			<validation:is-not-null doc:name="casetype validator" doc:id="5a67b33f-12cb-4f94-a2e9-4193c296d08a" value="#[vars.inputpayload.caseType]" message='#["please provide the casetype"]' />
+			<validation:is-not-null doc:name="firstname validator" doc:id="f8f06a55-c2f4-463a-852e-22557e0ce505" value="#[vars.inputpayload.firstName]" message='#["please provide the first name"]' />
+		</validation:all>
+	</sub-flow>
+</mule>

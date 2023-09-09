@@ -1,0 +1,29 @@
+<xs:schema attributeFormDefault="unqualified" elementFormDefault="qualified" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="covidCase">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element type="xs:byte" name="caseID" minOccurs="1"/>
+        <xs:element type="xs:string" name="source" minOccurs="1"/>
+        <xs:element type="xs:string" name="caseType" minOccurs="1"/>
+        <xs:element type="xs:string" name="firstName" minOccurs="1"/>
+        <xs:element type="xs:string" name="lastName" minOccurs="1"/>
+        <xs:element type="xs:string" name="phone" minOccurs="1"/>
+        <xs:element type="xs:string" name="email" minOccurs="0"/>
+        <xs:element type="xs:date" name="dateOfBirth" minOccurs="1"/>
+        <xs:element type="xs:string" name="nationalID" minOccurs="1"/>
+        <xs:element type="xs:string" name="nationalIDType" minOccurs="1"/>
+        <xs:element name="address">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element type="xs:string" name="streetAddress" minOccurs="1"/>
+              <xs:element type="xs:string" name="city" minOccurs="1"/>
+              <xs:element type="xs:string" name="state" minOccurs="1"/>
+              <xs:element type="xs:short" name="postal" minOccurs="1"/>
+              <xs:element type="xs:string" name="country" minOccurs="1"/>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

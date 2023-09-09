@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:validation="http://www.mulesoft.org/schema/mule/validation" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="9befe533-3186-4270-8462-8e47703e346c" basePath="covid" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<db:config name="Database_Config" doc:name="Database Config" doc:id="2cb340b0-31c3-4a59-b4ff-c5d72574ab52" >
+		<db:oracle-connection host="localhost" user="system" password="tiger" instance="XE" />
+	</db:config>
+	<db:config name="Database_Config1" doc:name="Database Config" doc:id="c8f5b378-13a4-412b-9dd6-89dabda7fc8b" >
+		<db:oracle-connection host="localhost" user="system" password="tiger" instance="XE" />
+	</db:config>
+	<sub-flow name="database_subflow" doc:id="1b987c3c-bc8c-401b-add5-1ac9882607c5" >
+		<try doc:name="Try" doc:id="28b6d31a-1955-4156-9882-30122732ae8a">
+			<db:stored-procedure doc:name="Stored procedure" doc:id="43afb39d-dcd1-4e0a-ba93-662b69aeb070" config-ref="Database_Config1">
+			<db:sql><![CDATA[{call inset_covid_master(:source, :case_type, :first_name, :last_name, :phone, :email, :date_of_birth, :national_id, :national_id_type, :street_address, :city, :state, :postal, :country, :create_date, :update_date, :create_by, :update_by, :case_id)}
+ ]]></db:sql>
+			<db:input-parameters><![CDATA[#[vars.covidpayload]]]></db:input-parameters>
+			<db:output-parameters>
+				<db:output-parameter key="case_id" type="INTEGER" />
+			</db:output-parameters>
+		</db:stored-procedure>
+			<ee:transform doc:name="Transform Message" doc:id="7e8e15df-8ea8-4e6e-8bdb-a287a8a85c11">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"caseID": payload.case_id as String
+}]]></ee:set-payload>
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="statuscode"><![CDATA[201]]></ee:set-variable>
+				<ee:set-variable variableName="statusReason"><![CDATA["OK"]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+			<error-handler>
+				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="0dac93e2-0cff-42d7-89f9-33a0d7a00737" type="DB:CONNECTIVITY">
+					<ee:transform doc:name="set service unavailable error" doc:id="4720c9b5-03b3-4ace-8c4c-8d2ed93d82d8">
+						<ee:message>
+							<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+   "code":500,
+   "message":"Internal server error",
+   "description":"Database error",
+   "dateTime":now() as String {format: "yyyy-MM-dd'T'HH:mm:ss'Z'"},
+   "transactionId":vars.transactionid
+	
+}]]></ee:set-payload>
+						</ee:message>
+						<ee:variables>
+							<ee:set-variable variableName="statuscode"><![CDATA[500]]></ee:set-variable>
+						</ee:variables>
+					</ee:transform>
+				</on-error-propagate>
+			</error-handler>
+		</try>
+	</sub-flow>
+	<flow name="register-covid-caseFlow" doc:id="24093017-d91b-4814-b055-88ed97b6ec18" >
+		<http:listener doc:name="Listener" doc:id="98682f41-ab43-492c-8ed9-97431003f01a" config-ref="HTTP_Listener_config" path="v1/cases" allowedMethods="POST">
+			<http:response statusCode="#[vars.statuscode]" reasonPhrase="#[vars.statusReason]" />
+			<http:error-response statusCode="#[vars.statuscode]">
+				<http:body ><![CDATA[#[payload]]]></http:body>
+			</http:error-response>
+		</http:listener>
+		<ee:transform doc:name="correlation_id and transaction_id" doc:id="01df5fa6-45f6-4b0b-a691-9f8875ac0830" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="correlationid" ><![CDATA[attributes.headers.'x-correlation-id' default ""]]></ee:set-variable>
+				<ee:set-variable variableName="transactionid" ><![CDATA[attributes.headers.'x-transaction-id' default uuid()]]></ee:set-variable>
+				<ee:set-variable variableName="inputpayload" ><![CDATA[payload]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<logger level="INFO" doc:name="Start Logger" doc:id="c358452c-56b0-4796-8905-510c045e2191" message="started register covid and the payload is #[payload]"/>
+		<flow-ref doc:name="Flow Reference" doc:id="8b1b4df6-470a-42b3-af0b-60ea70d87047" name="covid-case-validation-sub-flow" />
+		<ee:transform doc:name="prepare covid case payload" doc:id="8f14f3e2-ff3d-48c0-b5ee-d6d9711f320d" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="covidpayload" ><![CDATA[%dw 2.0
+output application/json
+var actionDate = now() as String {format: "yyyy-MM-dd"}
+var owner = "UHIS"	
+---
+{
+	email: payload.email,
+	source: payload.source,
+	state: payload.address.state,
+	update_by: owner,
+	city: payload.address.city,
+	create_date: actionDate,
+	first_name: payload.firstName,
+	create_by: owner,
+	case_type: payload.caseType,
+	street_address: payload.address.streetAddress,
+	national_id_type: payload.nationalIDType,
+	update_date: actionDate,
+	country: payload.address.country,
+	phone: payload.phone,
+	date_of_birth: payload.dateOfBirth,
+	postal: payload.address.postal,
+	national_id: payload.nationalID,
+	last_name: payload.lastName
+}]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<flow-ref doc:name="Flow Reference" doc:id="f2b5b9a7-a210-49d0-b364-69b9eca7eb10" name="database_subflow" />
+		<logger level="INFO" doc:name="end Logger " doc:id="0cf27517-f573-439e-9894-1d5c5fa526f7" message="the flow ended for register covid case #[payload]"/>
+		<error-handler>
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="e7eca4b4-9d28-46a6-988e-46cd45769459" type="VALIDATION:MULTIPLE">
+				<logger level="INFO" doc:name="Logger" doc:id="19732c15-e361-4c46-a9cd-a4d1c456f26f" message="error"/>
+				<ee:transform doc:name="set bad request error" doc:id="93afdb29-16df-4262-aac1-cc10d8a05e98" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+   "code":400,
+   "message":"Bad request",
+   "description":error.description,
+   "dateTime":now() as String {format: "yyyy-MM-dd'T'HH:mm:ss'Z'"},
+   "transactionId":vars.transactionid
+	
+}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables >
+						<ee:set-variable variableName="statuscode" ><![CDATA[400]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="4de84aff-0e6b-4ca7-8cda-9e6d2f381a87" type="EXPRESSION">
+				<ee:transform doc:name="set service unavailable error" doc:id="24fc981c-e9b8-4940-a207-4ca2c35de52e" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+   "code":503,
+   "message":"Service unavailable",
+   "description":"The (upstream) service is temporarily not available",
+   "dateTime":now() as String {format: "yyyy-MM-dd'T'HH:mm:ss'Z'"},
+   "transactionId":vars.transactionid
+	
+}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables >
+						<ee:set-variable variableName="statuscode" ><![CDATA[400]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="11d3163a-516f-4c1c-94f0-a254720dd1e6" type="ANY">
+				<ee:transform doc:name="set service unavailable error" doc:id="0298f8f4-b39c-4adf-807b-99ec633dffec" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+   "code":500,
+   "message":"Internal server error",
+   "description":"The server encountered an unexpected condition which prevented it from fulfilling the request",
+   "dateTime":now() as String {format: "yyyy-MM-dd'T'HH:mm:ss'Z'"},
+   "transactionId":vars.transactionid
+	
+}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables >
+						<ee:set-variable variableName="statuscode" ><![CDATA[500]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+</mule>

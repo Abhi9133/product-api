@@ -1,0 +1,42 @@
+
+%dw 2.0
+output application/java 
+---
+[{
+    CASE_ID : 69,
+    SOURCE : "in",
+    CASE_TYPE : "officia",
+    FIRST_NAME : "Chadwick",
+    LAST_NAME : "Davitti",
+    PHONE : "(471)-662-1158",
+    EMAIL : "Carl.Davioud@gmail.com",
+    DATE_OF_BIRTH : |2004-04-01|,
+    NATIONAL_ID : "88dec4b34eda4373966",
+    NATIONAL_ID_TYPE : "sed",
+    STREET_ADDRESS : "explicabo.",
+    CITY : "Manchester",
+    STATE : "aspernatur",
+    POSTAL : "fugit,",
+    COUNTRY : "Haiti",
+    CREATE_DATE : |2018-04-17|,
+    UPDATE_DATE : |2015-06-06|,
+  },
+{
+    CASE_ID : 40,
+    SOURCE : "quia",
+    CASE_TYPE : "laboriosam,",
+    FIRST_NAME : "Cornelius",
+    LAST_NAME : "Achaval",
+    PHONE : "(217)-355-7519",
+    EMAIL : "Agnes.Davoren@gmail.com",
+    DATE_OF_BIRTH : |2004-09-25|,
+    NATIONAL_ID : "456eee32cbcc4bb4974",
+    NATIONAL_ID_TYPE : "laboris",
+    STREET_ADDRESS : "esse",
+    CITY : "Los Angeles",
+    STATE : "veniam,",
+    POSTAL : "voluptatem",
+    COUNTRY : "Algeria",
+    CREATE_DATE : |2009-07-24|,
+    UPDATE_DATE : |2011-09-26|,
+  }]
